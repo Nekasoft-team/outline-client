@@ -19,15 +19,20 @@ const path = require('node:path');
 
 const ANDROID_LIBS_FOLDER_PATH = path.join('plugins', 'cordova-plugin-outline', 'android', 'libs');
 const TUN2SOCKS_ANDROID_FOLDER_PATH = path.join('third_party', 'outline-go-tun2socks', 'android');
+const XRAYCORE_ANDROID_FOLDER_PATH = path.join('third_party', 'xray-core', 'android');
 
-module.exports = async function(context) {
+module.exports = async function (context) {
   console.log('Copying Android third party libraries...');
   await fs.mkdir(ANDROID_LIBS_FOLDER_PATH, {recursive: true});
   await fs.copyFile(
     path.join(TUN2SOCKS_ANDROID_FOLDER_PATH, 'tun2socks.aar'),
     path.join(ANDROID_LIBS_FOLDER_PATH, 'tun2socks.aar')
   );
-  await fs.cp(path.join(TUN2SOCKS_ANDROID_FOLDER_PATH, 'jni'), path.join(ANDROID_LIBS_FOLDER_PATH, 'obj'), {
+  await fs.copyFile(
+    path.join(XRAYCORE_ANDROID_FOLDER_PATH, 'libv2ray.aar'),
+    path.join(ANDROID_LIBS_FOLDER_PATH, 'libv2ray.aar')
+  );
+  await fs.cp(path.join(XRAYCORE_ANDROID_FOLDER_PATH, 'jni'), path.join(ANDROID_LIBS_FOLDER_PATH, 'obj'), {
     recursive: true,
   });
 };

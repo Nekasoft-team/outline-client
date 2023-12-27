@@ -1,0 +1,11 @@
+name: "AndroidLibXrayLite"
+description: "Go network wrapper based on go-xray-core."
+
+third_party {
+  url {
+    type: GIT
+    value: "https://github.com/2dust/AndroidLibXrayLite"
+  }
+  version: "0.1.0"
+  last_upgrade_date { year: 2022 month: 4 day: 20 }
+}

@@ -40,6 +40,8 @@ dependencies {
             include: ['tun2socks.aar'])
     // Note: A flatDir repository might be preferable, but this is not compatible
     // with a composite build (https://github.com/gradle/gradle/issues/911).
+    compileOnly fileTree(dir: '../../../../../third_party/xray-core/android',
+            include: ['libv2ray.aar'])
 
     implementation 'io.sentry:sentry-android:2.0.2'
     implementation 'org.apache.commons:commons-collections4:4.4'
