@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application>
         <!-- This is needed for the instrumentation tests to run. -->
         <meta-data android:name="io.sentry.auto-init" android:value="false" />

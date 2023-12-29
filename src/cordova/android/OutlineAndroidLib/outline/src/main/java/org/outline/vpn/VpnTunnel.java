@@ -14,11 +14,15 @@
 
 package org.outline.vpn;
 
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.VpnService;
 import android.os.Build;
+import android.os.Handler;
 import android.os.ParcelFileDescriptor;
+import android.widget.EditText;
+import android.widget.TextView;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Locale;
@@ -30,6 +34,8 @@ import tun2socks.Tun2socks;
 import libv2ray.Libv2ray;
 import libv2ray.V2RayPoint;
 import libv2ray.V2RayVPNServiceSupportsSet;
+import org.outline.vpn.xray.AppConfigs;
+import org.outline.vpn.xray.V2rayController;
 
 
 /**
@@ -50,6 +56,9 @@ public class VpnTunnel {
   private String dnsResolverAddress;
   private ParcelFileDescriptor tunFd;
   private Tunnel tunnel;
+  private EditText v2ray_json_config;
+  private SharedPreferences sharedPreferences;
+  private TextView connected_server_delay;
 
   /**
    * Constructor.
@@ -144,8 +153,20 @@ public class VpnTunnel {
     }
 
     LOG.fine("Starting tun2socks...");
-    tunnel = Tun2socks.connectShadowsocksTunnel(tunFd.getFd(), client, isUdpEnabled);
-      }
+    // tunnel = Tun2socks.connectShadowsocksTunnel(tunFd.getFd(), client, isUdpEnabled);
+    sharedPreferences.edit().putString("v2ray_config", v2ray_json_config.getText().toString()).apply();
+    if (V2rayController.getConnectionState() == AppConfigs.V2RAY_STATES.V2RAY_DISCONNECTED) {
+        // in StartV2ray function we can set remark to show that on notification.
+        // StartV2ray function steel need json config of v2ray. Unfortunately, it does not accept URI or base64 type at the moment.
+        V2rayController.StartV2ray(vpnService.getApplicationContext(), "Default", v2ray_json_config.getText().toString(), null);
+        connected_server_delay.setText("connected server delay : measuring...");
+        //getConnectedV2rayServerDelay function need a text view for now
+        new Handler().postDelayed(() -> V2rayController.getConnectedV2rayServerDelay(vpnService.getApplicationContext(), connected_server_delay), 1000);
+    } else {
+        connected_server_delay.setText("connected server delay : wait for connection");
+        V2rayController.StopV2ray(vpnService.getApplicationContext());
+    }
+    }
 
   /* Disconnects a tunnel created by a previous call to |connectTunnel|. */
   public synchronized void disconnectTunnel() {
