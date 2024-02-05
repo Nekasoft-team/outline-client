@@ -99,7 +99,7 @@ public class V2rayController {
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
-    public static void getConnectedV2rayServerDelay(final Context context, final TextView tvDelay) {
+    public static void getConnectedV2rayServerDelay(final Context context) {
         Intent check_delay;
         if (AppConfigs.V2RAY_CONNECTION_MODE == AppConfigs.V2RAY_CONNECTION_MODES.PROXY_ONLY) {
             check_delay = new Intent(context, V2rayProxyOnlyService.class);
@@ -115,7 +115,7 @@ public class V2rayController {
             @Override
             public void onReceive(Context arg0, Intent arg1) {
                 String delay = Objects.requireNonNull(arg1.getExtras()).getString("DELAY");
-                tvDelay.setText("connected server delay : " + delay);
+                System.out.println("connected server delay : " + delay);
                 context.unregisterReceiver(this);
             }
         };

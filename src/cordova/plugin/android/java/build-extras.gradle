@@ -9,5 +9,6 @@ dependencies {
   implementation(name:'tun2socks', ext:'aar')
   implementation(name: 'libv2ray', ext: 'aar')
   implementation 'com.android.support:appcompat-v7:23.4.0'
+  implementation group: 'com.google.code.gson', name: 'gson', version: '2.10.1'
   implementation 'io.sentry:sentry-android:2.0.2'
 }

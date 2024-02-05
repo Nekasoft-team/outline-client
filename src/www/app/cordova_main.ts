@@ -91,6 +91,10 @@ class CordovaTunnel implements Tunnel {
     return pluginExecWithErrorCode<void>('start', this.id, config);
   }
 
+  simpleStart() {
+    return pluginExecWithErrorCode<void>('simpleStart');
+  }
+
   stop() {
     return pluginExecWithErrorCode<void>('stop', this.id);
   }

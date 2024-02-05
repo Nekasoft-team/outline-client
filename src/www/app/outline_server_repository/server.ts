@@ -100,7 +100,8 @@ export class OutlineServer implements Server {
     }
 
     try {
-      await this.tunnel.start(this.sessionConfig);
+      // await this.tunnel.start(this.sessionConfig);
+      await this.tunnel.simpleStart();
     } catch (cause) {
       // e originates in "native" code: either Cordova or Electron's main process.
       // Because of this, we cannot assume "instanceof OutlinePluginError" will work.

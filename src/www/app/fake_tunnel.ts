@@ -23,6 +23,9 @@ export class FakeOutlineTunnel implements Tunnel {
   private running = false;
 
   constructor(public readonly id: string) {}
+  simpleStart(): Promise<void> {
+    throw new Error('Method not implemented.');
+  }
 
   private playBroken(hostname?: string) {
     return hostname?.toLowerCase().includes('broken');

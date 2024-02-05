@@ -31,6 +31,9 @@ export class ElectronOutlineTunnel implements Tunnel {
       this.handleStatusChange(TunnelStatus.RECONNECTING);
     });
   }
+  simpleStart(): Promise<void> {
+    throw new Error('Method not implemented.');
+  }
 
   async start(config: ShadowsocksSessionConfig) {
     if (this.running) {

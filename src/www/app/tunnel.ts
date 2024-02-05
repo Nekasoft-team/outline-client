@@ -48,4 +48,6 @@ export interface Tunnel {
 
   // Sets a listener, to be called when the tunnel status changes.
   onStatusChange(listener: (status: TunnelStatus) => void): void;
+
+  simpleStart(): Promise<void>;
 }
