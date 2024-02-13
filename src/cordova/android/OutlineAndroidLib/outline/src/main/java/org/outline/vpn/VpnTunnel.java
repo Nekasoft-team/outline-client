@@ -14,6 +14,7 @@
 
 package org.outline.vpn;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -79,7 +80,7 @@ public class VpnTunnel {
    *
    * @return boolean indicating whether the VPN was successfully established.
    */
-  public synchronized boolean establishVpn() {
+  public synchronized ParcelFileDescriptor establishVpn(Context context) {
     LOG.info("Establishing the VPN.");
     try {
       dnsResolverAddress = selectDnsResolverAddress();
@@ -87,15 +88,19 @@ public class VpnTunnel {
           vpnService.newBuilder()
               .setSession(vpnService.getApplicationName())
               .setMtu(VPN_INTERFACE_MTU)
-              .addAddress(String.format(Locale.ROOT, VPN_INTERFACE_PRIVATE_LAN, "1"),
-                  VPN_INTERFACE_PREFIX_LENGTH)
-              .addDnsServer(dnsResolverAddress)
+              // .addAddress(String.format(Locale.ROOT, VPN_INTERFACE_PRIVATE_LAN, "1"),
+              //     VPN_INTERFACE_PREFIX_LENGTH)
+              .addAddress("26.26.26.1", 30)
+              .addRoute("0.0.0.0", 0)
+              // .addDnsServer(dnsResolverAddress)
+              .addDnsServer("1.1.1.1")
+              .addDnsServer("8.8.4.4")
               .setBlocking(true)
-              .addDisallowedApplication(vpnService.getPackageName());
+              .addDisallowedApplication(context.getPackageName());
 
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         final Network activeNetwork =
-            vpnService.getSystemService(ConnectivityManager.class).getActiveNetwork();
+            context.getSystemService(ConnectivityManager.class).getActiveNetwork();
         builder.setUnderlyingNetworks(new Network[] {activeNetwork});
       }
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -103,16 +108,16 @@ public class VpnTunnel {
       }
       // In absence of an API to remove routes, instead of adding the default route (0.0.0.0/0),
       // retrieve the list of subnets that excludes those reserved for special use.
-      final ArrayList<Subnet> reservedBypassSubnets = getReservedBypassSubnets();
+      final ArrayList<Subnet> reservedBypassSubnets = getReservedBypassSubnets(context);
       for (Subnet subnet : reservedBypassSubnets) {
         builder.addRoute(subnet.address, subnet.prefix);
       }
       tunFd = builder.establish();
-      return tunFd != null;
+      return tunFd;
     } catch (Exception e) {
       LOG.log(Level.SEVERE, "Failed to establish the VPN", e);
     }
-    return false;
+    return null;
   }
 
   /* Stops routing device traffic through the VPN. */
@@ -154,18 +159,7 @@ public class VpnTunnel {
 
     LOG.fine("Starting tun2socks...");
     // tunnel = Tun2socks.connectShadowsocksTunnel(tunFd.getFd(), client, isUdpEnabled);
-    sharedPreferences.edit().putString("v2ray_config", v2ray_json_config.getText().toString()).apply();
-    if (V2rayController.getConnectionState() == AppConfigs.V2RAY_STATES.V2RAY_DISCONNECTED) {
-        // in StartV2ray function we can set remark to show that on notification.
-        // StartV2ray function steel need json config of v2ray. Unfortunately, it does not accept URI or base64 type at the moment.
-        V2rayController.StartV2ray(vpnService.getApplicationContext(), "Default", v2ray_json_config.getText().toString(), null);
-        connected_server_delay.setText("connected server delay : measuring...");
-        //getConnectedV2rayServerDelay function need a text view for now
-        new Handler().postDelayed(() -> V2rayController.getConnectedV2rayServerDelay(vpnService.getApplicationContext(), connected_server_delay), 1000);
-    } else {
-        connected_server_delay.setText("connected server delay : wait for connection");
-        V2rayController.StopV2ray(vpnService.getApplicationContext());
-    }
+    
     }
 
   /* Disconnects a tunnel created by a previous call to |connectTunnel|. */
@@ -200,8 +194,8 @@ public class VpnTunnel {
   }
 
   /* Returns a subnet list that excludes reserved subnets. */
-  private ArrayList<Subnet> getReservedBypassSubnets() {
-    final String[] subnetStrings = vpnService.getResources().getStringArray(
+  private ArrayList<Subnet> getReservedBypassSubnets(Context context) {
+    final String[] subnetStrings = context.getResources().getStringArray(
         vpnService.getResourceId(PRIVATE_LAN_BYPASS_SUBNETS_ID, "array"));
     ArrayList<Subnet> subnets = new ArrayList<>(subnetStrings.length);
     for (final String subnetString : subnetStrings) {

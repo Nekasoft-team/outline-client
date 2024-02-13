@@ -41,6 +41,8 @@ import org.outline.log.SentryErrorReporter;
 import org.outline.vpn.VpnServiceStarter;
 import org.outline.vpn.VpnTunnelService;
 
+import org.outline.vpn.xray.V2rayVPNService;
+
 import static org.outline.vpn.VpnTunnelService.ErrorCode;
 import static org.outline.vpn.VpnTunnelService.MessageData;
 import static org.outline.vpn.VpnTunnelService.TunnelStatus;
@@ -99,7 +101,8 @@ public class OutlinePlugin extends CordovaPlugin {
   // A race condition may occur when calling methods on this instance if the service unbinds.
   // We catch any exceptions, which should generally be transient and recoverable, and report them
   // to the WebView.
-  private IVpnTunnelService vpnTunnelService;
+  // private IVpnTunnelService vpnTunnelService;
+  private VpnTunnelService vpnTunnelService = new VpnTunnelService();
   private String errorReportingApiKey;
   private StartVpnRequest startVpnRequest;
   // Tunnel status change callback by tunnel ID.
@@ -109,7 +112,7 @@ public class OutlinePlugin extends CordovaPlugin {
   private final ServiceConnection vpnServiceConnection = new ServiceConnection() {
     @Override
     public void onServiceConnected(ComponentName className, IBinder binder) {
-      vpnTunnelService = IVpnTunnelService.Stub.asInterface(binder);
+      // vpnTunnelService = IVpnTunnelService.Stub.asInterface(binder);
       LOG.info("VPN service connected");
     }
 
@@ -197,7 +200,8 @@ public class OutlinePlugin extends CordovaPlugin {
         } else if (Action.STOP.is(action)) {
           final String tunnelId = args.getString(0);
           LOG.info(String.format(Locale.ROOT, "Stopping VPN tunnel %s", tunnelId));
-          int errorCode = vpnTunnelService.stopTunnel(tunnelId);
+          int errorCode = vpnTunnelService.stopTunnel(tunnelId).value;
+          // int errorCode = vpnTunnelService.stopTunnel(tunnelId);
           sendErrorCode(callback, errorCode);
         } else if (Action.IS_RUNNING.is(action)) {
           final String tunnelId = args.getString(0);
@@ -268,7 +272,8 @@ public class OutlinePlugin extends CordovaPlugin {
       LOG.log(Level.SEVERE, "Failed to retrieve the tunnel proxy config.", e);
       return ErrorCode.ILLEGAL_SERVER_CONFIGURATION.value;
     }
-    return vpnTunnelService.startTunnel(tunnelConfig);
+    return vpnTunnelService.startTunnel(tunnelConfig, getBaseContext()).value;
+    // return vpnTunnelService.startTunnel(tunnelConfig);
   }
 
   // Returns whether the VPN service is running a particular tunnel instance.

@@ -21,6 +21,8 @@ import libv2ray.Libv2ray;
 import libv2ray.V2RayPoint;
 import libv2ray.V2RayVPNServiceSupportsSet;
 
+import go.Seq;
+
 public final class V2rayCoreManager {
     private volatile static V2rayCoreManager INSTANCE;
     public V2rayServicesListener v2rayServicesListener = null;
@@ -90,6 +92,7 @@ public final class V2rayCoreManager {
     public void setUpListener(Service targetService) {
         try {
             v2rayServicesListener = (V2rayServicesListener) targetService;
+            Seq.setContext(targetService.getApplicationContext());
             Libv2ray.initV2Env(Utilities.getUserAssetsPath(targetService.getApplicationContext()), Utilities.getDeviceIdForXUDPBaseKey());
             isLibV2rayCoreInitialized = true;
             SERVICE_DURATION = "00:00:00";

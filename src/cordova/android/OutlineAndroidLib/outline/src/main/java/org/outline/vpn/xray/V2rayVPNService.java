@@ -1,6 +1,7 @@
 package org.outline.vpn.xray;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.net.LocalSocket;
 import android.net.LocalSocketAddress;
@@ -39,7 +40,7 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
                 V2rayCoreManager.getInstance().stopCore();
             }
             if (V2rayCoreManager.getInstance().startCore(v2rayConfig)) {
-                Log.e(V2rayProxyOnlyService.class.getSimpleName(), "onStartCommand success => v2ray core started.");
+                Log.e(V2rayVPNService.class.getSimpleName(), "onStartCommand success => v2ray core started.");
             } else {
                 this.onDestroy();
             }
@@ -77,7 +78,7 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
 
     }
 
-    private void setup() {
+    public void setup() {
         Intent prepare_intent = prepare(this);
         if (prepare_intent != null) {
             return;
@@ -110,44 +111,47 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
         try {
             mInterface = builder.establish();
             isRunning = true;
-            runTun2socks();
+            runTun2socks(null, null);
         } catch (Exception e) {
             stopAllProcess();
         }
 
     }
 
-    private void runTun2socks() {
-        ArrayList<String> cmd = new ArrayList<>(Arrays.asList(new File(getApplicationInfo().nativeLibraryDir, "libtun2socks.so").getAbsolutePath(),
+    public void runTun2socks(Context context, ParcelFileDescriptor tunFd) {
+        mInterface = tunFd;
+        ArrayList<String> cmd = new ArrayList<>(Arrays.asList(new File(context.getApplicationInfo().nativeLibraryDir, "libtun2socks.so").getAbsolutePath(),
                 "--netif-ipaddr", "26.26.26.2",
                 "--netif-netmask", "255.255.255.252",
-                "--socks-server-addr", "127.0.0.1:" + v2rayConfig.LOCAL_SOCKS5_PORT,
+                // "--socks-server-addr", "127.0.0.1:" + v2rayConfig.LOCAL_SOCKS5_PORT,
+                "--socks-server-addr", "127.0.0.1:" + "1080",
                 "--tunmtu", "1500",
-                "--sock-path", "sock_path",
+                "--sock-path", "/data/data/org.outline.android.client/files/sock_path",
                 "--enable-udprelay",
                 "--loglevel", "error"));
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(cmd);
             processBuilder.redirectErrorStream(true);
-            process = processBuilder.directory(getApplicationContext().getFilesDir()).start();
+            process = processBuilder.directory(context.getFilesDir()).start();
             new Thread(() -> {
                 try {
                     process.waitFor();
                     if (isRunning) {
-                        runTun2socks();
+                        runTun2socks(context, tunFd);
                     }
                 } catch (InterruptedException e) {
                     //ignore
                 }
             }, "Tun2socks_Thread").start();
-            sendFileDescriptor();
+            sendFileDescriptor(context);
         } catch (Exception e) {
             this.onDestroy();
         }
     }
 
-    private void sendFileDescriptor() {
-        String localSocksFile = new File(getApplicationContext().getFilesDir(), "sock_path").getAbsolutePath();
+    private void sendFileDescriptor(Context context) {
+        String localSocksFile = new File("/data/data/org.outline.android.client/files", "sock_path").getAbsolutePath();
+        // String localSocksFile = "/data/data/org.outline.android.client/files/sock_path";
         FileDescriptor tunFd = mInterface.getFileDescriptor();
         new Thread(() -> {
             int tries = 0;
