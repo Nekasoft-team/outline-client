@@ -113,41 +113,39 @@ public class VpnTunnelService extends VpnService {
   }
 
   private Context context;
-  private VpnTunnel vpnTunnel = new VpnTunnel(this);
+  private VpnTunnel vpnTunnel;
   private TunnelConfig tunnelConfig;
   private NetworkConnectivityMonitor networkConnectivityMonitor;
   private VpnTunnelStore tunnelStore;
   private Notification.Builder notificationBuilder;
   private V2rayVPNService v2rayVPNService = new V2rayVPNService();
   private ParcelFileDescriptor tunFd;
+  private final IVpnTunnelService.Stub binder = new IVpnTunnelService.Stub() {
+    @Override
+    public int startTunnel(TunnelConfig config) {
+      return VpnTunnelService.this.startTunnel(config).value;
+    }
 
-  // private final IVpnTunnelService.Stub binder = new IVpnTunnelService.Stub() {
-  //   @Override
-  //   public int startTunnel(TunnelConfig config) {
-  //     Context context = getApplicationContext();
-  //     return VpnTunnelService.this.startTunnel(config, context).value;
-  //   }
+    @Override
+    public int stopTunnel(String tunnelId) {
+      return VpnTunnelService.this.stopTunnel(tunnelId).value;
+    }
 
-  //   @Override
-  //   public int stopTunnel(String tunnelId) {
-  //     return VpnTunnelService.this.stopTunnel(tunnelId).value;
-  //   }
+    @Override
+    public boolean isTunnelActive(String tunnelId) {
+      return VpnTunnelService.this.isTunnelActive(tunnelId);
+    }
 
-  //   @Override
-  //   public boolean isTunnelActive(String tunnelId) {
-  //     return VpnTunnelService.this.isTunnelActive(tunnelId);
-  //   }
+    @Override
+    public boolean isServerReachable(String host, int port) {
+      return VpnTunnelService.this.isServerReachable(host, port);
+    }
 
-  //   @Override
-  //   public boolean isServerReachable(String host, int port) {
-  //     return VpnTunnelService.this.isServerReachable(host, port);
-  //   }
-
-  //   @Override
-  //   public void initErrorReporting(String apiKey) {
-  //     VpnTunnelService.this.initErrorReporting(apiKey);
-  //   }
-  // };
+    @Override
+    public void initErrorReporting(String apiKey) {
+      VpnTunnelService.this.initErrorReporting(apiKey);
+    }
+  };
 
   @Override
   public void onCreate() {
@@ -172,7 +170,7 @@ public class VpnTunnelService extends VpnService {
     if (errorReportingApiKey != null) {
       initErrorReporting(errorReportingApiKey);
     }
-    return super.onBind(intent);
+    return binder;
   }
 
   @Override
@@ -257,14 +255,13 @@ public class VpnTunnelService extends VpnService {
 
   // Tunnel API
 
-  public ErrorCode startTunnel(final TunnelConfig config, Context context) {
-    this.context = context;
-    tunnelStore = new VpnTunnelStore(context);
-    return startTunnel(config, false, context);
+  private ErrorCode startTunnel(final TunnelConfig config) {
+    this.context = getApplicationContext();
+    return startTunnel(config, false);
   }
 
-  public synchronized ErrorCode startTunnel(
-      final TunnelConfig config, boolean isAutoStart, Context context) {
+  private synchronized ErrorCode startTunnel(
+      final TunnelConfig config, boolean isAutoStart) {
     LOG.info(String.format(Locale.ROOT, "Starting tunnel %s.", config.id));
     if (config.id == null || config.proxy == null) {
       return ErrorCode.ILLEGAL_SERVER_CONFIGURATION;
@@ -291,7 +288,7 @@ public class VpnTunnelService extends VpnService {
     // final shadowsocks.Client client;
     try {
       // client = new shadowsocks.Client(configCopy);
-    if (V2rayController.getConnectionState() == AppConfigs.V2RAY_STATES.V2RAY_DISCONNECTED) {
+if (V2rayController.getConnectionState() == AppConfigs.V2RAY_STATES.V2RAY_DISCONNECTED) {
         // in StartV2ray function we can set remark to show that on notification.
         // StartV2ray function steel need json config of v2ray. Unfortunately, it does not accept URI or base64 type at the moment.
         V2rayController.StartV2ray(context, "Default", getXrayConfig().toString(), null);
@@ -327,13 +324,12 @@ public class VpnTunnelService extends VpnService {
 
     if (!isRestart) {
       // Only establish the VPN if this is not a tunnel restart.
-      tunFd = vpnTunnel.establishVpn(context);
-      if (!(tunFd != null)) {
+      if (!vpnTunnel.establishVpn()) {
         LOG.severe("Failed to establish the VPN");
         tearDownActiveTunnel();
         return ErrorCode.VPN_START_FAILURE;
       }
-      startNetworkConnectivityMonitor(context);
+      startNetworkConnectivityMonitor();
     }
 
     final boolean remoteUdpForwardingEnabled =
@@ -341,7 +337,7 @@ public class VpnTunnelService extends VpnService {
     try {
       System.out.println("Connecting tunnel");
       // vpnTunnel.connectTunnel(client, remoteUdpForwardingEnabled);
-      v2rayVPNService.runTun2socks(context, tunFd);
+      v2rayVPNService.runTun2socks();
     } catch (Exception e) {
       LOG.log(Level.SEVERE, "Failed to connect the tunnel", e);
       tearDownActiveTunnel();
@@ -352,7 +348,7 @@ public class VpnTunnelService extends VpnService {
     return ErrorCode.NO_ERROR;
   }
 
-  public synchronized ErrorCode stopTunnel(final String tunnelId) {
+  private synchronized ErrorCode stopTunnel(final String tunnelId) {
     if (!isTunnelActive(tunnelId)) {
       return ErrorCode.UNEXPECTED;
     }
@@ -360,14 +356,14 @@ public class VpnTunnelService extends VpnService {
     return ErrorCode.NO_ERROR;
   }
 
-  public synchronized boolean isTunnelActive(final String tunnelId) {
+  private synchronized boolean isTunnelActive(final String tunnelId) {
     if (tunnelConfig == null || tunnelConfig.id == null) {
       return false;
     }
     return tunnelConfig.id.equals(tunnelId);
   }
 
-  public boolean isServerReachable(final String host, final int port) {
+  private boolean isServerReachable(final String host, final int port) {
     try {
       Shadowsocks.checkServerReachable(host, port);
     } catch (Exception e) {
@@ -377,7 +373,7 @@ public class VpnTunnelService extends VpnService {
   }
 
   /* Helper method to tear down an active tunnel. */
-  public void tearDownActiveTunnel() {
+  private void tearDownActiveTunnel() {
     stopVpnTunnel();
     stopForeground();
     tunnelConfig = null;
@@ -386,14 +382,14 @@ public class VpnTunnelService extends VpnService {
   }
 
   /* Helper method that stops Shadowsocks, tun2socks, and tears down the VPN. */
-  public void stopVpnTunnel() {
+  private void stopVpnTunnel() {
     vpnTunnel.disconnectTunnel();
     vpnTunnel.tearDownVpn();
   }
 
   // Shadowsocks
 
-  public ErrorCode checkServerConnectivity(final shadowsocks.Client client) {
+  private ErrorCode checkServerConnectivity(final shadowsocks.Client client) {
     try {
       long errorCode = Shadowsocks.checkConnectivity(client);
       ErrorCode result = ErrorCode.values()[(int) errorCode];
@@ -463,10 +459,9 @@ public class VpnTunnelService extends VpnService {
     }
   }
 
-  private void startNetworkConnectivityMonitor(Context context) {
-    NetworkConnectivityMonitor networkConnectivityMonitor = new NetworkConnectivityMonitor(context);
+  private void startNetworkConnectivityMonitor() {
     final ConnectivityManager connectivityManager =
-        (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
     NetworkRequest request = new NetworkRequest.Builder()
                                  .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                                  .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
@@ -499,10 +494,10 @@ public class VpnTunnelService extends VpnService {
       return;
     }
     Intent statusChange = new Intent(STATUS_BROADCAST_KEY);
-    statusChange.addCategory(context.getPackageName());
+    statusChange.addCategory(getPackageName());
     statusChange.putExtra(MessageData.PAYLOAD.value, status.value);
     statusChange.putExtra(MessageData.TUNNEL_ID.value, tunnelConfig.id);
-    context.sendBroadcast(statusChange);
+    sendBroadcast(statusChange);
   }
 
   // Autostart
@@ -526,7 +521,7 @@ public class VpnTunnelService extends VpnService {
       // Start the service in the foreground as per Android 8+ background service execution limits.
       // Requires android.permission.FOREGROUND_SERVICE since Android P.
       startForegroundWithNotification(config);
-      startTunnel(config, true, null);
+      startTunnel(config, true);
     } catch (Exception e) {
       LOG.log(Level.SEVERE, "Failed to retrieve JSON tunnel data", e);
     }
@@ -562,7 +557,7 @@ public class VpnTunnelService extends VpnService {
 
   // Error reporting
 
-  public void initErrorReporting(final String apiKey) {
+  private void initErrorReporting(final String apiKey) {
     try {
       SentryErrorReporter.init(this, apiKey);
     } catch (Exception e) {
@@ -652,10 +647,7 @@ public class VpnTunnelService extends VpnService {
 
   /* Retrieves the ID for a resource. This is equivalent to using the generated R class. */
   public int getResourceId(final String name, final String type) {
-    if (context == null) {
-      return getResources().getIdentifier(name, type, getPackageName());
-    }
-    return context.getResources().getIdentifier(name, type, context.getPackageName());
+    return getResources().getIdentifier(name, type, getPackageName());
   }
 
   /* Returns the server's name from |serverConfig|. If the name is not present, it falls back to the
@@ -675,8 +667,8 @@ public class VpnTunnelService extends VpnService {
 
   /* Returns the application name. */
   public final String getApplicationName() throws PackageManager.NameNotFoundException {
-    PackageManager packageManager = context.getPackageManager();
-    ApplicationInfo appInfo = packageManager.getApplicationInfo(context.getPackageName(), 0);
+    PackageManager packageManager = getApplicationContext().getPackageManager();
+    ApplicationInfo appInfo = packageManager.getApplicationInfo(getPackageName(), 0);
     return (String) packageManager.getApplicationLabel(appInfo);
   }
 

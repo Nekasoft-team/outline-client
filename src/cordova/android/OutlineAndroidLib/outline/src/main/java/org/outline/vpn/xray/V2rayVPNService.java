@@ -111,16 +111,15 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
         try {
             mInterface = builder.establish();
             isRunning = true;
-            runTun2socks(null, null);
+            runTun2socks();
         } catch (Exception e) {
             stopAllProcess();
         }
 
     }
 
-    public void runTun2socks(Context context, ParcelFileDescriptor tunFd) {
-        mInterface = tunFd;
-        ArrayList<String> cmd = new ArrayList<>(Arrays.asList(new File(context.getApplicationInfo().nativeLibraryDir, "libtun2socks.so").getAbsolutePath(),
+    public void runTun2socks() {
+        ArrayList<String> cmd = new ArrayList<>(Arrays.asList(new File(getApplicationInfo().nativeLibraryDir, "libtun2socks.so").getAbsolutePath(),
                 "--netif-ipaddr", "26.26.26.2",
                 "--netif-netmask", "255.255.255.252",
                 // "--socks-server-addr", "127.0.0.1:" + v2rayConfig.LOCAL_SOCKS5_PORT,
@@ -132,26 +131,26 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(cmd);
             processBuilder.redirectErrorStream(true);
-            process = processBuilder.directory(context.getFilesDir()).start();
+            process = processBuilder.directory(getApplicationContext().getFilesDir()).start();
             new Thread(() -> {
                 try {
                     process.waitFor();
                     if (isRunning) {
-                        runTun2socks(context, tunFd);
+                        runTun2socks();
                     }
                 } catch (InterruptedException e) {
                     //ignore
                 }
             }, "Tun2socks_Thread").start();
-            sendFileDescriptor(context);
+            sendFileDescriptor();
         } catch (Exception e) {
             this.onDestroy();
         }
     }
 
-    private void sendFileDescriptor(Context context) {
+    private void sendFileDescriptor() {
+        // String localSocksFile = new File(getApplicationContext().getFilesDir(), "sock_path").getAbsolutePath();
         String localSocksFile = new File("/data/data/org.outline.android.client/files", "sock_path").getAbsolutePath();
-        // String localSocksFile = "/data/data/org.outline.android.client/files/sock_path";
         FileDescriptor tunFd = mInterface.getFileDescriptor();
         new Thread(() -> {
             int tries = 0;

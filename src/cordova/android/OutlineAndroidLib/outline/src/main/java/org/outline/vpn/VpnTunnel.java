@@ -120,6 +120,42 @@ public class VpnTunnel {
     return null;
   }
 
+  public synchronized boolean establishVpn() {
+    LOG.info("Establishing the VPN.");
+    try {
+      dnsResolverAddress = selectDnsResolverAddress();
+      VpnService.Builder builder =
+          vpnService.newBuilder()
+              .setSession(vpnService.getApplicationName())
+              .setMtu(VPN_INTERFACE_MTU)
+              .addAddress(String.format(Locale.ROOT, VPN_INTERFACE_PRIVATE_LAN, "1"),
+                  VPN_INTERFACE_PREFIX_LENGTH)
+              .addDnsServer(dnsResolverAddress)
+              .setBlocking(true)
+              .addDisallowedApplication(vpnService.getPackageName());
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        final Network activeNetwork =
+            vpnService.getSystemService(ConnectivityManager.class).getActiveNetwork();
+        builder.setUnderlyingNetworks(new Network[] {activeNetwork});
+      }
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        builder.setMetered(false);
+      }
+      // In absence of an API to remove routes, instead of adding the default route (0.0.0.0/0),
+      // retrieve the list of subnets that excludes those reserved for special use.
+      final ArrayList<Subnet> reservedBypassSubnets = getReservedBypassSubnets();
+      for (Subnet subnet : reservedBypassSubnets) {
+        builder.addRoute(subnet.address, subnet.prefix);
+      }
+      tunFd = builder.establish();
+      return tunFd != null;
+    } catch (Exception e) {
+      LOG.log(Level.SEVERE, "Failed to establish the VPN", e);
+    }
+    return false;
+  }
+
   /* Stops routing device traffic through the VPN. */
   public synchronized void tearDownVpn() {
     LOG.info("Tearing down the VPN.");
@@ -196,6 +232,20 @@ public class VpnTunnel {
   /* Returns a subnet list that excludes reserved subnets. */
   private ArrayList<Subnet> getReservedBypassSubnets(Context context) {
     final String[] subnetStrings = context.getResources().getStringArray(
+        vpnService.getResourceId(PRIVATE_LAN_BYPASS_SUBNETS_ID, "array"));
+    ArrayList<Subnet> subnets = new ArrayList<>(subnetStrings.length);
+    for (final String subnetString : subnetStrings) {
+      try {
+        subnets.add(Subnet.parse(subnetString));
+      } catch (Exception e) {
+        LOG.warning(String.format(Locale.ROOT, "Failed to parse subnet: %s", subnetString));
+      }
+    }
+    return subnets;
+  }
+
+  private ArrayList<Subnet> getReservedBypassSubnets() {
+    final String[] subnetStrings = vpnService.getResources().getStringArray(
         vpnService.getResourceId(PRIVATE_LAN_BYPASS_SUBNETS_ID, "array"));
     ArrayList<Subnet> subnets = new ArrayList<>(subnetStrings.length);
     for (final String subnetString : subnetStrings) {
