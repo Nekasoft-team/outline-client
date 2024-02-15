@@ -292,10 +292,7 @@ if (V2rayController.getConnectionState() == AppConfigs.V2RAY_STATES.V2RAY_DISCON
         // in StartV2ray function we can set remark to show that on notification.
         // StartV2ray function steel need json config of v2ray. Unfortunately, it does not accept URI or base64 type at the moment.
         V2rayController.StartV2ray(context, "Default", getXrayConfig().toString(), null);
-        //getConnectedV2rayServerDelay function need a text view for now
-        // new Handler().postDelayed(() -> V2rayController.getConnectedV2rayServerDelay(context, connected_server_delay), 1000);
     } else {
-        // connected_server_delay.setText("connected server delay : wait for connection");
         V2rayController.StopV2ray(context);
     }
     } catch (Exception e) {
@@ -376,6 +373,7 @@ if (V2rayController.getConnectionState() == AppConfigs.V2RAY_STATES.V2RAY_DISCON
     stopForeground();
     tunnelConfig = null;
     stopNetworkConnectivityMonitor();
+    V2rayController.StopV2ray(context);
     tunnelStore.setTunnelStatus(TunnelStatus.DISCONNECTED);
   }
 
