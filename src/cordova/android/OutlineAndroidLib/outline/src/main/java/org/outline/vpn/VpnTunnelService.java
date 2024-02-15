@@ -336,8 +336,6 @@ if (V2rayController.getConnectionState() == AppConfigs.V2RAY_STATES.V2RAY_DISCON
         isAutoStart ? tunnelStore.isUdpSupported() : errorCode == ErrorCode.NO_ERROR;
     try {
       System.out.println("Connecting tunnel");
-      // vpnTunnel.connectTunnel(client, remoteUdpForwardingEnabled);
-      v2rayVPNService.runTun2socks();
     } catch (Exception e) {
       LOG.log(Level.SEVERE, "Failed to connect the tunnel", e);
       tearDownActiveTunnel();

@@ -122,10 +122,9 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
         ArrayList<String> cmd = new ArrayList<>(Arrays.asList(new File(getApplicationInfo().nativeLibraryDir, "libtun2socks.so").getAbsolutePath(),
                 "--netif-ipaddr", "26.26.26.2",
                 "--netif-netmask", "255.255.255.252",
-                // "--socks-server-addr", "127.0.0.1:" + v2rayConfig.LOCAL_SOCKS5_PORT,
-                "--socks-server-addr", "127.0.0.1:" + "1080",
+                "--socks-server-addr", "127.0.0.1:" + v2rayConfig.LOCAL_SOCKS5_PORT,
                 "--tunmtu", "1500",
-                "--sock-path", "/data/data/org.outline.android.client/files/sock_path",
+                "--sock-path", "sock_path",
                 "--enable-udprelay",
                 "--loglevel", "error"));
         try {
@@ -149,8 +148,7 @@ public class V2rayVPNService extends VpnService implements V2rayServicesListener
     }
 
     private void sendFileDescriptor() {
-        // String localSocksFile = new File(getApplicationContext().getFilesDir(), "sock_path").getAbsolutePath();
-        String localSocksFile = new File("/data/data/org.outline.android.client/files", "sock_path").getAbsolutePath();
+        String localSocksFile = new File(getApplicationContext().getFilesDir(), "sock_path").getAbsolutePath();
         FileDescriptor tunFd = mInterface.getFileDescriptor();
         new Thread(() -> {
             int tries = 0;
